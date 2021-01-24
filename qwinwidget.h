@@ -64,7 +64,7 @@ class NativeEventFilter : public QAbstractNativeEventFilter
 {
 public:
     explicit NativeEventFilter(QWinWidget *widget);
-    bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) override;
+    bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
 
 private:
     QWinWidget *winWidget;
@@ -97,24 +97,23 @@ protected:
     bool focusNextPrevChild(bool next) override;
     void focusInEvent(QFocusEvent *e) override;
 
-
 private:
-    QVBoxLayout m_Layout;
-
-    Widget* p_Widget;
-
-    WinNativeWindow* p_ParentWinNativeWindow;
-    HWND m_ParentNativeWindowHandle;
-
-    HWND _prevFocus;
-    bool _reenableParent;
-
-    int BORDERWIDTH = 6;		//Adjust this as you wish for # of pixels on the edges to show resize handles
-    int TOOLBARHEIGHT = 40; //Adjust this as you wish for # of pixels from the top to allow dragging the window
-
     void saveFocus();
     void resetFocus();
 
+private:
+    QVBoxLayout* m_layout;
+
+    Widget* m_widget;
+
+    WinNativeWindow* m_parentWinNativeWindow;
+    HWND m_parentNativeWindowHandle;
+
+    HWND m_prevFocusHandle;
+    bool m_reenableParent;
+
+    int BORDERWIDTH = 6;		//Adjust this as you wish for # of pixels on the edges to show resize handles
+    int TOOLBARHEIGHT = 40; //Adjust this as you wish for # of pixels from the top to allow dragging the window
 
     friend class NativeEventFilter;
 };

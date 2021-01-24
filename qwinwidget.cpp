@@ -82,7 +82,7 @@ NativeEventFilter::NativeEventFilter(QWinWidget *widget)
 
 }
 
-bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *message, long *result)
+bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result)
 {
     if (eventType != "windows_generic_MSG" && eventType != "windows_dispatcher_MSG")
         return false;
@@ -111,22 +111,22 @@ bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *mes
     //Double check WM_SIZE messages to see if the parent native window is maximized
     if (msg->message == WM_SIZE)
     {
-        if (winWidget->p_Widget && winWidget->p_Widget->maximizeButton)
+        if (winWidget->m_widget && winWidget->m_widget->maximizeButton)
         {
             //Get the window state
             WINDOWPLACEMENT wp;
-            GetWindowPlacement(winWidget->m_ParentNativeWindowHandle, &wp);
+            GetWindowPlacement(winWidget->m_parentNativeWindowHandle, &wp);
 
             //If we're maximized,
             if (wp.showCmd == SW_MAXIMIZE)
             {
                 //Maximize button should show as Restore
-                winWidget->p_Widget->maximizeButton->setChecked(true);
+                winWidget->m_widget->maximizeButton->setChecked(true);
             }
             else
             {
                 //Maximize button should show as Maximize
-                winWidget->p_Widget->maximizeButton->setChecked(false);
+                winWidget->m_widget->maximizeButton->setChecked(false);
             }
         }
     }
@@ -143,11 +143,11 @@ bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *mes
 
         if (x >= winWidget->BORDERWIDTH && x <= WindowRect.right - WindowRect.left - winWidget->BORDERWIDTH && y >= winWidget->BORDERWIDTH && y <= winWidget->TOOLBARHEIGHT)
         {
-            if (winWidget->p_Widget->toolBar)
+            if (winWidget->m_widget->toolBar)
             {
                 //If the mouse is over top of the toolbar area BUT is actually positioned over a child widget of the toolbar,
                 //Then we don't want to enable dragging. This allows for buttons in the toolbar, eg, a Maximize button, to keep the mouse interaction
-                if (QApplication::widgetAt(QCursor::pos()) != winWidget->p_Widget->toolBar)
+                if (QApplication::widgetAt(QCursor::pos()) != winWidget->m_widget->toolBar)
                     return false;
             }
 
@@ -206,90 +206,92 @@ bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *mes
 
 QWinWidget::QWinWidget()
     : QWidget(nullptr),
-      m_Layout(),
-      p_Widget(nullptr),
-      m_ParentNativeWindowHandle(nullptr),
-      _prevFocus(nullptr),
-      _reenableParent(false)
+      m_layout(nullptr),
+      m_widget(nullptr),
+      m_parentNativeWindowHandle(nullptr),
+      m_prevFocusHandle(nullptr),
+      m_reenableParent(false)
 {
     qApp->installNativeEventFilter(new NativeEventFilter(this));
 
     //Create a native window and give it geometry values * devicePixelRatio for HiDPI support
-    p_ParentWinNativeWindow = new WinNativeWindow(1  * window()->devicePixelRatio()
-        , 1 * window()->devicePixelRatio()
-        , 1 * window()->devicePixelRatio()
-        , 1 * window()->devicePixelRatio());
+    auto pixel_ratio = window()->devicePixelRatio();
+    m_parentWinNativeWindow = new WinNativeWindow(1 * pixel_ratio
+        , 1 * pixel_ratio
+        , 1 * pixel_ratio
+        , 1 * pixel_ratio);
 
 	//If you want to set a minimize size for your app, do so here
-    //p_ParentWinNativeWindow->setMinimumSize(1024 * window()->devicePixelRatio(), 768 * window()->devicePixelRatio());
+    //m_parentWinNativeWindow->setMinimumSize(1024 * window()->devicePixelRatio(), 768 * window()->devicePixelRatio());
 
 	//If you want to set a maximum size for your app, do so here
-	//p_ParentWinNativeWindow->setMaximumSize(1024 * window()->devicePixelRatio(), 768 * window()->devicePixelRatio());
+	//m_parentWinNativeWindow->setMaximumSize(1024 * window()->devicePixelRatio(), 768 * window()->devicePixelRatio());
 
 
     //Save the native window handle for shorthand use
-    m_ParentNativeWindowHandle = p_ParentWinNativeWindow->hWnd;
-    Q_ASSERT(m_ParentNativeWindowHandle);
+    m_parentNativeWindowHandle = m_parentWinNativeWindow->hWnd;
+    Q_ASSERT(m_parentNativeWindowHandle);
 
 
     //Create the child window & embed it into the native one
-    if (m_ParentNativeWindowHandle)
+    if (m_parentNativeWindowHandle)
     {
         setWindowFlags(Qt::FramelessWindowHint);
-        setProperty("_q_embedded_native_parent_handle", (WId)m_ParentNativeWindowHandle);
-        SetWindowLong((HWND)winId(), GWL_STYLE, WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
-        
-        SetParent((HWND)winId(), m_ParentNativeWindowHandle);
+        setProperty("_q_embedded_native_parent_handle", (WId)m_parentNativeWindowHandle);
+        ::SetWindowLong((HWND)winId(), GWL_STYLE, WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+        ::SetParent((HWND)winId(), m_parentNativeWindowHandle);
         QEvent e(QEvent::EmbeddingControl);
         QApplication::sendEvent(this, &e);
     }
 
     //Pass along our window handle & widget pointer to WinFramelessWidget so we can exchange messages
-    p_ParentWinNativeWindow->childWindow = (HWND)winId();
-    p_ParentWinNativeWindow->childWidget = this;
+    m_parentWinNativeWindow->childWindow = (HWND)winId();
+    m_parentWinNativeWindow->childWidget = this;
 
     //Clear margins & spacing & add the layout to prepare for the MainAppWidget
     setContentsMargins(0, 0, 0, 0);
-    setLayout(&m_Layout);
-    m_Layout.setContentsMargins(0, 0, 0, 0);
-    m_Layout.setSpacing(0);
+
+    m_layout = new QVBoxLayout(this);
+    m_layout->setContentsMargins(0, 0, 0, 0);
+    m_layout->setSpacing(0);
+    //setLayout(m_layout); //fixme: is this needed?
 
     //Create the true app widget 
-    p_Widget = new Widget(this);
-    m_Layout.addWidget(p_Widget);
-    p_Widget->setParent(this, Qt::Widget);
-    p_Widget->setVisible(true);
+    m_widget = new Widget(this);
+    m_widget->setParent(this, Qt::Widget);
+    m_widget->setVisible(true);
+    m_layout->addWidget(m_widget);
 
     //Update the BORDERWIDTH value if needed for HiDPI displays
-    BORDERWIDTH = BORDERWIDTH * window()->devicePixelRatio(); 
+    BORDERWIDTH = BORDERWIDTH * window()->devicePixelRatio();
 
 	//Update the TOOLBARHEIGHT value to match the height of toolBar * if needed, the HiDPI display
-	if (p_Widget->toolBar)
+	if (m_widget->toolBar)
 	{
-		TOOLBARHEIGHT = p_Widget->toolBar->height() * window()->devicePixelRatio();
+		TOOLBARHEIGHT = m_widget->toolBar->height() * window()->devicePixelRatio();
 	}
 
 
     //You need to keep the native window in sync with the Qt window & children, so wire min/max/close buttons to 
 	//slots inside of QWinWidget. QWinWidget can then talk with the native window as needed 
-	if (p_Widget->minimizeButton)
+	if (m_widget->minimizeButton)
 	{
-		connect(p_Widget->minimizeButton, &QPushButton::clicked, this, &QWinWidget::onMinimizeButtonClicked);
+		connect(m_widget->minimizeButton, &QToolButton::clicked, this, &QWinWidget::onMinimizeButtonClicked);
 	}
-	if (p_Widget->maximizeButton)
+	if (m_widget->maximizeButton)
 	{
-		connect(p_Widget->maximizeButton, &QPushButton::clicked, this, &QWinWidget::onMaximizeButtonClicked);
+		connect(m_widget->maximizeButton, &QToolButton::clicked, this, &QWinWidget::onMaximizeButtonClicked);
 
 	}
-	if (p_Widget->closeButton)
+	if (m_widget->closeButton)
 	{
-		connect(p_Widget->closeButton, &QPushButton::clicked, this, &QWinWidget::onCloseButtonClicked);
+		connect(m_widget->closeButton, &QToolButton::clicked, this, &QWinWidget::onCloseButtonClicked);
 	}
 
 	
 
     //Send the parent native window a WM_SIZE message to update the widget size 
-    SendMessage(m_ParentNativeWindowHandle, WM_SIZE, 0, 0);
+    ::SendMessage(m_parentNativeWindowHandle, WM_SIZE, 0, 0);
 }
 
 
@@ -306,7 +308,7 @@ QWinWidget::~QWinWidget()
 */
 HWND QWinWidget::getParentWindow() const
 {
-    return m_ParentNativeWindowHandle;
+    return m_parentNativeWindowHandle;
 }
 
 /*!
@@ -315,14 +317,19 @@ HWND QWinWidget::getParentWindow() const
 void QWinWidget::childEvent(QChildEvent *e)
 {
     QObject *obj = e->child();
-    if (obj->isWidgetType()) {
-        if (e->added()) {
-        if (obj->isWidgetType()) {
-            obj->installEventFilter(this);
+    if (obj->isWidgetType())
+    {
+        if (e->added())
+        {
+            if (obj->isWidgetType())
+            {
+                obj->installEventFilter(this);
+            }
         }
-        } else if (e->removed() && _reenableParent) {
-        _reenableParent = false;
-        EnableWindow(m_ParentNativeWindowHandle, true);
+        else if (e->removed() && m_reenableParent)
+        {
+            m_reenableParent = false;
+            ::EnableWindow(m_parentNativeWindowHandle, true);
             obj->removeEventFilter(this);
         }
     }
@@ -332,10 +339,8 @@ void QWinWidget::childEvent(QChildEvent *e)
 /*! \internal */
 void QWinWidget::saveFocus()
 {
-    if (!_prevFocus)
-        _prevFocus = ::GetFocus();
-    if (!_prevFocus)
-        _prevFocus = getParentWindow();
+    if (!m_prevFocusHandle) m_prevFocusHandle = ::GetFocus();
+    if (!m_prevFocusHandle) m_prevFocusHandle = getParentWindow();
 }
 
 /*!
@@ -345,7 +350,7 @@ void QWinWidget::saveFocus()
 */
 void QWinWidget::show()
 {
-    ShowWindow(m_ParentNativeWindowHandle, true);
+    ::ShowWindow(m_parentNativeWindowHandle, true);
     saveFocus();
     QWidget::show();
 }
@@ -371,8 +376,9 @@ void QWinWidget::center()
         qWarning("QWinWidget::center: Call this function only for QWinWidgets with toplevel children");
     }
     RECT r;
-    GetWindowRect(m_ParentNativeWindowHandle, &r);
+    ::GetWindowRect(m_parentNativeWindowHandle, &r);
     setGeometry((r.right-r.left)/2+r.left, (r.bottom-r.top)/2+r.top,0,0);
+    // todo: Check geometry math, what happens near rounding?
 }
 
 /*!
@@ -388,10 +394,8 @@ void QWinWidget::showCentered()
 
 void QWinWidget::setGeometry(int x, int y, int w, int h)
 {
-    p_ParentWinNativeWindow->setGeometry(x * window()->devicePixelRatio()
-		, y * window()->devicePixelRatio()
-		, w * window()->devicePixelRatio()
-		, h * window()->devicePixelRatio());
+    auto dpr = window()->devicePixelRatio();
+    m_parentWinNativeWindow->setGeometry(x*dpr, y*dpr, w*dpr, h*dpr);
 }
 
 /*!
@@ -401,8 +405,8 @@ void QWinWidget::setGeometry(int x, int y, int w, int h)
 */
 void QWinWidget::resetFocus()
 {
-    if (_prevFocus)
-        ::SetFocus(_prevFocus);
+    if (m_prevFocusHandle)
+        ::SetFocus(m_prevFocusHandle);
     else
         ::SetFocus(getParentWindow());
 }
@@ -410,19 +414,19 @@ void QWinWidget::resetFocus()
 //Tell the parent native window to minimize
 void QWinWidget::onMinimizeButtonClicked()
 {
-    SendMessage(m_ParentNativeWindowHandle, WM_SYSCOMMAND, SC_MINIMIZE, 0);
+    ::SendMessage(m_parentNativeWindowHandle, WM_SYSCOMMAND, SC_MINIMIZE, 0);
 }
 
 //Tell the parent native window to maximize or restore as appropriate
 void QWinWidget::onMaximizeButtonClicked()
 {
-    if (p_Widget->maximizeButton->isChecked())
+    if (m_widget->maximizeButton->isChecked())  // todo: check this, versus "!::IsZoomed(m_parentNativeWidowHandle)" condition
     {
-        SendMessage(m_ParentNativeWindowHandle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+        ::SendMessage(m_parentNativeWindowHandle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
     }
     else
     {
-        SendMessage(m_ParentNativeWindowHandle, WM_SYSCOMMAND, SC_RESTORE, 0);
+        ::SendMessage(m_parentNativeWindowHandle, WM_SYSCOMMAND, SC_RESTORE, 0);
     }
 }
 
@@ -438,51 +442,53 @@ void QWinWidget::onCloseButtonClicked()
 void QWinWidget::closeEvent(QCloseEvent *event)
 {
     //use closeEvent to check for it whether it is safe to close your app here or not
-    ShowWindow(m_ParentNativeWindowHandle, false);
+    ::ShowWindow(m_parentNativeWindowHandle, false);
 }
 
 bool QWinWidget::eventFilter(QObject *o, QEvent *e)
 {
-    QWidget *w = (QWidget*)o;
+    auto* w = (QWidget*) o;
 
     switch (e->type())
     {
         case QEvent::WindowDeactivate:
-        if (w->isModal() && w->isHidden())
-            BringWindowToTop(m_ParentNativeWindowHandle);
-        break;
+            if (w->isModal() && w->isHidden()) {
+                ::BringWindowToTop(m_parentNativeWindowHandle);
+            }
+            break;
 
         case QEvent::Hide:
-        if (_reenableParent) {
-            EnableWindow(m_ParentNativeWindowHandle, true);
-            _reenableParent = false;
-        }
-        resetFocus();
+            if (m_reenableParent) {
+                ::EnableWindow(m_parentNativeWindowHandle, true);
+                m_reenableParent = false;
+            }
+            resetFocus();
 
-        if (w->testAttribute(Qt::WA_DeleteOnClose) && w->isWindow())
-            deleteLater();
-        break;
+            if (w->testAttribute(Qt::WA_DeleteOnClose) && w->isWindow()) {
+                deleteLater();
+            }
+            break;
 
         case QEvent::Show:
-        if (w->isWindow()) {
-            saveFocus();
-            hide();
-            if (w->isModal() && !_reenableParent) {
-            EnableWindow(m_ParentNativeWindowHandle, false);
-            _reenableParent = true;
+            if (w->isWindow()) {
+                saveFocus();
+                hide();
+                if (w->isModal() && !m_reenableParent) {
+                    ::EnableWindow(m_parentNativeWindowHandle, false);
+                    m_reenableParent = true;
+                }
             }
-        }
-        break;
+            break;
 
         case QEvent::Close:
-        {
-            ::SetActiveWindow(m_ParentNativeWindowHandle);
-            if (w->testAttribute(Qt::WA_DeleteOnClose))
+            ::SetActiveWindow(m_parentNativeWindowHandle);
+            if (w->testAttribute(Qt::WA_DeleteOnClose)) {
                 deleteLater();
+            }
             break;
-        }
+
         default:
-        break;
+            break;
     }
 
     return QWidget::eventFilter(o, e);
@@ -494,28 +500,32 @@ void QWinWidget::focusInEvent(QFocusEvent *e)
 {
     QWidget *candidate = this;
 
-    switch (e->reason()) {
-    case Qt::TabFocusReason:
-    case Qt::BacktabFocusReason:
-        while (!(candidate->focusPolicy() & Qt::TabFocus)) {
-            candidate = candidate->nextInFocusChain();
-            if (candidate == this) {
-                candidate = 0;
-                break;
+    switch (e->reason())
+    {
+        case Qt::TabFocusReason:
+        case Qt::BacktabFocusReason:
+            while (!(candidate->focusPolicy() & Qt::TabFocus))
+            {
+                candidate = candidate->nextInFocusChain();
+                if (candidate == this) {
+                    candidate = nullptr;
+                    break;
+                }
             }
-        }
-        if (candidate) {
-            candidate->setFocus(e->reason());
-            if (e->reason() == Qt::BacktabFocusReason || e->reason() == Qt::TabFocusReason) {
-                candidate->setAttribute(Qt::WA_KeyboardFocusChange);
-                candidate->window()->setAttribute(Qt::WA_KeyboardFocusChange);
+            if (candidate) {
+                candidate->setFocus(e->reason());
+                if (e->reason() == Qt::BacktabFocusReason || e->reason() == Qt::TabFocusReason) {
+                    candidate->setAttribute(Qt::WA_KeyboardFocusChange);
+                    candidate->window()->setAttribute(Qt::WA_KeyboardFocusChange);
+                }
+                if (e->reason() == Qt::BacktabFocusReason) {
+                    QWidget::focusNextPrevChild(false);
+                }
             }
-            if (e->reason() == Qt::BacktabFocusReason)
-                QWidget::focusNextPrevChild(false);
-        }
-        break;
-    default:
-        break;
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -527,12 +537,13 @@ bool QWinWidget::focusNextPrevChild(bool next)
     if (!next) {
         if (!curFocus->isWindow()) {
             QWidget *nextFocus = curFocus->nextInFocusChain();
-            QWidget *prevFocus = 0;
-            QWidget *topLevel = 0;
-            while (nextFocus != curFocus) {
+            QWidget *prevFocus = nullptr;
+            QWidget *topLevel = nullptr;
+            while (nextFocus != curFocus)
+            {
                 if (nextFocus->focusPolicy() & Qt::TabFocus) {
                     prevFocus = nextFocus;
-                    topLevel = 0;
+                    topLevel = nullptr;
                 }
                 nextFocus = nextFocus->nextInFocusChain();
             }
@@ -541,7 +552,8 @@ bool QWinWidget::focusNextPrevChild(bool next)
                 return QWidget::focusNextPrevChild(false);
             }
         }
-    } else {
+    }
+    else {
         QWidget *nextFocus = curFocus;
         while (1 && nextFocus != 0) {
             nextFocus = nextFocus->nextInFocusChain();
@@ -551,7 +563,7 @@ bool QWinWidget::focusNextPrevChild(bool next)
         }
     }
 
-    ::SetFocus(m_ParentNativeWindowHandle);
+    ::SetFocus(m_parentNativeWindowHandle);
 
     return true;
 }

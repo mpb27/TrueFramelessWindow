@@ -214,12 +214,17 @@ QWinWidget::QWinWidget()
 {
     qApp->installNativeEventFilter(new NativeEventFilter(this));
 
+    //Create the true app widget
+    m_widget = new Widget(this);
+    m_widget->setParent(this, Qt::Widget);
+    m_widget->setVisible(true);
+
+    //m_widget->windowTitle()
+
     //Create a native window and give it geometry values * devicePixelRatio for HiDPI support
-    auto pixel_ratio = window()->devicePixelRatio();
-    m_parentWinNativeWindow = new WinNativeWindow(1 * pixel_ratio
-        , 1 * pixel_ratio
-        , 1 * pixel_ratio
-        , 1 * pixel_ratio);
+    auto dpr = window()->devicePixelRatio();
+    m_parentWinNativeWindow = new WinNativeWindow(m_widget->windowTitle().toStdString(), // todo: correct to use m_widget->windowTitle().
+            1*dpr, 1*dpr, 1*dpr, 1*dpr);
 
 	//If you want to set a minimize size for your app, do so here
     //m_parentWinNativeWindow->setMinimumSize(1024 * window()->devicePixelRatio(), 768 * window()->devicePixelRatio());
@@ -254,12 +259,8 @@ QWinWidget::QWinWidget()
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(0);
-    //setLayout(m_layout); //fixme: is this needed?
+    setLayout(m_layout); //fixme: is this needed?
 
-    //Create the true app widget 
-    m_widget = new Widget(this);
-    m_widget->setParent(this, Qt::Widget);
-    m_widget->setVisible(true);
     m_layout->addWidget(m_widget);
 
     //Update the BORDERWIDTH value if needed for HiDPI displays

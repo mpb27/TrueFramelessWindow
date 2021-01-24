@@ -3,14 +3,14 @@
 #include <dwmapi.h>
 #include <stdexcept>
 
-WinNativeWindow::WinNativeWindow(const int x, const int y, const int width, const int height)
+WinNativeWindow::WinNativeWindow(const std::string& title, const int x, const int y, const int width, const int height)
     : hWnd(nullptr)
     , childWindow(nullptr)
     , childWidget(nullptr)
 {
 
 	//The native window technically has a background color. You can set it here
-    HBRUSH windowBackground = ::CreateSolidBrush(RGB(255, 255, 255));
+    HBRUSH windowBackground = ::CreateSolidBrush(RGB(255, 0, 0));
 
     HINSTANCE hInstance = ::GetModuleHandle(nullptr);
     WNDCLASSEX wcx = { 0 };
@@ -33,7 +33,7 @@ WinNativeWindow::WinNativeWindow(const int x, const int y, const int width, cons
     }
 
     //Create a native window with the appropriate style
-    hWnd = ::CreateWindow("WindowClass", "WindowTitle", aero_borderless, x, y, width, height, 0, 0, hInstance, nullptr);
+    hWnd = ::CreateWindow("WindowClass", title.c_str(), aero_borderless, x, y, width, height, 0, 0, hInstance, nullptr);
     if (!hWnd)
     {
         throw std::runtime_error("couldn't create window because of reasons");
@@ -47,6 +47,10 @@ WinNativeWindow::WinNativeWindow(const int x, const int y, const int width, cons
        //DwmExtendFrameIntoClientArea(hWnd, &aero_shadow_on);
 
     ::SetWindowPos(hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
+
+    // From Razille/TrueFrameWindow:
+    const MARGINS shadow_on = {1, 1, 1, 1};
+    // ::DwmExtendFrameIntoClientArea(hWnd, &shadow_on); // Can't link? missing something?
 }
 
 WinNativeWindow::~WinNativeWindow()

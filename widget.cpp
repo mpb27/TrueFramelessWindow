@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QLayout>
 #include <QStyle>
+#include <QtWidgets>
 
 Widget::Widget(QWidget *parent)
 	: QMainWindow(parent)
@@ -20,7 +21,8 @@ Widget::Widget(QWidget *parent)
 
 	//Add the toolbar
 	toolBar = new QToolBar(this);
-    toolBar->setStyleSheet("QToolBar{background-color: lightGray; border: none;}");
+    //toolBar->setStyleSheet("QToolBar{background-color: lightGray; border: none;}");
+    toolBar->setStyleSheet("QToolBar{background-color: none; border: none;}");
 	toolBar->setMovable(false);
 	toolBar->setFloatable(false);
 	addToolBar(toolBar);
@@ -41,9 +43,36 @@ Widget::Widget(QWidget *parent)
 	windowIcon->setPixmap(QApplication::style()->standardIcon((QStyle::StandardPixmap)0).pixmap(16, 16));
     toolBar->addWidget(windowIcon);
 
+    // Add Menu Bar.
+    {
+        QMenuBar* menuBar = new QMenuBar();
+        menuBar->setMinimumWidth(10);
+        //menuBar->setStyleSheet(QString("color:%1;").arg(theme["text"].name()));
+        QMenu* fileMenu = new QMenu("File");
+        menuBar->addMenu(fileMenu);
+        QMenu* cpuMenu = new QMenu("CPU");
+        menuBar->addMenu(cpuMenu);
+        QMenu* gpuMenu = new QMenu("GPU");
+        menuBar->addMenu(gpuMenu);
+        QMenu* windowMenu = new QMenu("Window");
+        menuBar->addMenu(windowMenu);
+        QMenu* helpMenu = new QMenu("Help");
+        menuBar->addMenu(helpMenu);
+        fileMenu->addAction("Save");
+        fileMenu->addAction("Exit");
+        menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        toolBar->addWidget(menuBar);
+
+    }
+
+
+
 	//Create a title label just because
 	QLabel* titleLabel = new QLabel("TrueFramelessWindow");
-	titleLabel->setFixedWidth(160);
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	//titleLabel->setFixedWidth(160);
+	titleLabel->setStyleSheet("color:ffffff;");
 
 	//Set it transparent to mouse events such that you can click and drag when moused over the label
 	titleLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -67,13 +96,38 @@ Widget::Widget(QWidget *parent)
 	//Add spacers & title label
 	//toolBar->addWidget(leftSpacer);
 	//toolBar->addWidget(titleLabel);
-	toolBar->addWidget(rightSpacer);
+	//toolBar->addWidget(rightSpacer);
 
 
 	//Create the min/max/close buttons
 	minimizeButton = new QToolButton();  minimizeButton->setText("-");
 	maximizeButton = new QToolButton();  maximizeButton->setText("O");
-	closeButton    = new QToolButton();  closeButton->setText("X");
+	closeButton    = new QToolButton(); // closeButton->setText("X");
+
+	/*
+	auto svg2Pixmap = [](const QByteArray& svgContent,
+                         const QSize& size,
+                         QPainter::CompositionMode mode)
+    {
+        QSvgRenderer rr(svgContent);
+        QImage image(size.width(), size.height(), QImage::Format_ARGB32);
+        QPainter painter(&image);
+        painter.setCompositionMode(mode);
+        image.fill(Qt::transparent);
+        rr.render(&painter);
+        return QPixmap::fromImage(image);
+    };
+    */
+
+
+	auto closeIcon = QIcon(
+	QPixmap::fromImage(
+	QImage::fromData("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polygon fill=\"#ff00ff\" fill-rule=\"evenodd\" points=\"11 1.576 6.583 6 11 10.424 10.424 11 6 6.583 1.576 11 1 10.424 5.417 6 1 1.576 1.576 1 6 5.417 10.424 1\"></polygon></svg>")
+    )
+    );
+	closeButton->setIcon(closeIcon);
+    //closeButton->setIconSize(QSize(12, 12));
+
 
 	minimizeButton->setAutoRaise(true);
 	maximizeButton->setAutoRaise(true);
@@ -97,6 +151,9 @@ Widget::Widget(QWidget *parent)
 
 	//An actual app should use icons for the buttons instead of text
 	//and style the different button states / widget margins in css
+
+
+
 
 #endif
 

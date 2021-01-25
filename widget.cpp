@@ -6,6 +6,8 @@
 #include <QStyle>
 #include <QtWidgets>
 
+#include <fmt/format.h>
+
 Widget::Widget(QWidget *parent)
 	: QMainWindow(parent)
 {
@@ -38,6 +40,7 @@ Widget::Widget(QWidget *parent)
     */
 	QLabel* windowIcon = new QLabel();
 	windowIcon->setFixedSize(24, 24);
+	windowIcon->setStyleSheet("background: red;");
 	windowIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 	windowIcon->setAlignment(Qt::AlignCenter);
 	windowIcon->setPixmap(QApplication::style()->standardIcon((QStyle::StandardPixmap)0).pixmap(16, 16));
@@ -45,22 +48,26 @@ Widget::Widget(QWidget *parent)
 
     // Add Menu Bar.
     {
-        QMenuBar* menuBar = new QMenuBar();
+        QMenuBar* menuBar = new QMenuBar(toolBar);
         menuBar->setMinimumWidth(10);
+        menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
         //menuBar->setStyleSheet(QString("color:%1;").arg(theme["text"].name()));
-        QMenu* fileMenu = new QMenu("File");
+        menuBar->setStyleSheet("QMenuBar { min-height: 24px; }");
+        QMenu* fileMenu = new QMenu("File", this);
+        //fileMenu->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         menuBar->addMenu(fileMenu);
-        QMenu* cpuMenu = new QMenu("CPU");
+        QMenu* cpuMenu = new QMenu("CPU", this);
         menuBar->addMenu(cpuMenu);
-        QMenu* gpuMenu = new QMenu("GPU");
+        QMenu* gpuMenu = new QMenu("GPU", toolBar);
         menuBar->addMenu(gpuMenu);
         QMenu* windowMenu = new QMenu("Window");
         menuBar->addMenu(windowMenu);
         QMenu* helpMenu = new QMenu("Help");
         menuBar->addMenu(helpMenu);
+        menuBar->addAction("Hello");
         fileMenu->addAction("Save");
         fileMenu->addAction("Exit");
-        menuBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
         toolBar->addWidget(menuBar);
 
     }
@@ -103,6 +110,7 @@ Widget::Widget(QWidget *parent)
 	minimizeButton = new QToolButton();  minimizeButton->setText("-");
 	maximizeButton = new QToolButton();  maximizeButton->setText("O");
 	closeButton    = new QToolButton(); // closeButton->setText("X");
+    closeButton->setStyleSheet("QToolButton:hover { background-color: red; border: 0px solid lightgray; }");
 
 	/*
 	auto svg2Pixmap = [](const QByteArray& svgContent,
@@ -133,7 +141,7 @@ Widget::Widget(QWidget *parent)
 	maximizeButton->setAutoRaise(true);
 	closeButton->setAutoRaise(true);
 
-	maximizeButton->setCheckable(true);
+	maximizeButton->setCheckable(true);  // To allow for two draw states, maximize and restore.
 
 	minimizeButton->setFixedSize(45, 28);
 	maximizeButton->setFixedSize(45, 28);

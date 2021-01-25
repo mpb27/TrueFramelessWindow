@@ -3,6 +3,8 @@
 #include <dwmapi.h>
 #include <stdexcept>
 
+#include <fmt/format.h>
+
 WinNativeWindow::WinNativeWindow(const std::string& title, const int x, const int y, const int width, const int height)
     : hWnd(nullptr)
     , childWindow(nullptr)
@@ -177,16 +179,24 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
             {
                 if (wp.showCmd == SW_MAXIMIZE)
                 {
-                    window->childWidget->setGeometry(8, 8 //Maximized window draw 8 pixels off screen
-                        , winrect.right / window->childWidget->window()->devicePixelRatio() - 16
-                        , winrect.bottom / window->childWidget->window()->devicePixelRatio() - 16);
+                    //Maximized window draw 8 pixels off screen
+                    auto aw = winrect.right / window->childWidget->window()->devicePixelRatio();
+                    auto ah = winrect.bottom / window->childWidget->window()->devicePixelRatio();
+                    aw = std::round(aw);
+                    ah = std::round(ah);
+                    window->childWidget->setGeometry(6, 6, aw-12, ah-12);
+                    fmt::print("WinNativeWindow::WndProc() WM_SIZE: childWidget->setGeometry(x:{},y:{},w:{},h:{})\n",8,8,aw,ah);
                 }
                 else
                 {
-                    window->childWidget->setGeometry(0, 0
-                        , winrect.right / window->childWidget->window()->devicePixelRatio()
-                        , winrect.bottom / window->childWidget->window()->devicePixelRatio());
+                    auto aw = winrect.right / window->childWidget->window()->devicePixelRatio();
+                    auto ah = winrect.bottom / window->childWidget->window()->devicePixelRatio();
+                    aw = std::round(aw);
+                    ah = std::round(ah);
+                    window->childWidget->setGeometry(-1, -1, aw+2, ah+2);
+                    fmt::print("WinNativeWindow::WndProc() WM_SIZE: childWidget->setGeometry(x:{},y:{},w:{},h:{})\n",0,0,aw,ah);
                 }
+
             }
 
             break;
@@ -215,6 +225,7 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
 void WinNativeWindow::setGeometry(const int x, const int y, const int width, const int height)
 {
     ::MoveWindow(hWnd, x, y, width, height, 1);
+    fmt::print("WinNativeWindow::setGeometry(x:{},y:{},w:{},h:{})\n", x,y,width,height);
 }
 
 void WinNativeWindow::setMinimumSize(const int width, const int height)

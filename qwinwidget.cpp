@@ -55,6 +55,7 @@
 #include <qt_windows.h>
 #include <QWindow>
 
+#include <fmt/format.h>
 
 /*!
     \class QWinWidget qwinwidget.h
@@ -219,6 +220,8 @@ QWinWidget::QWinWidget()
     m_widget->setParent(this, Qt::Widget);
     m_widget->setVisible(true);
 
+    this->setContentsMargins(0,0,0,0);
+    m_widget->setContentsMargins(0,0,0,0);
     //m_widget->windowTitle()
 
     //Create a native window and give it geometry values * devicePixelRatio for HiDPI support
@@ -255,6 +258,7 @@ QWinWidget::QWinWidget()
 
     //Clear margins & spacing & add the layout to prepare for the MainAppWidget
     setContentsMargins(0, 0, 0, 0);
+    //setStyleSheet("background-color: green;");
 
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(0, 0, 0, 0);
@@ -397,6 +401,7 @@ void QWinWidget::setGeometry(int x, int y, int w, int h)
 {
     auto dpr = window()->devicePixelRatio();
     m_parentWinNativeWindow->setGeometry(x*dpr, y*dpr, w*dpr, h*dpr);
+    fmt::print("QWinWidget::setGeometry(x:{},y:{},w:{},h:{})\n", x,y,w,h);
 }
 
 /*!
@@ -410,6 +415,8 @@ void QWinWidget::resetFocus()
         ::SetFocus(m_prevFocusHandle);
     else
         ::SetFocus(getParentWindow());
+
+    fmt::print("QWinWidget::resetFocus()\n");
 }
 
 //Tell the parent native window to minimize
@@ -421,7 +428,7 @@ void QWinWidget::onMinimizeButtonClicked()
 //Tell the parent native window to maximize or restore as appropriate
 void QWinWidget::onMaximizeButtonClicked()
 {
-    if (m_widget->maximizeButton->isChecked())  // todo: check this, versus "!::IsZoomed(m_parentNativeWidowHandle)" condition
+    if (!::IsZoomed(m_parentNativeWindowHandle))
     {
         ::SendMessage(m_parentNativeWindowHandle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
     }

@@ -69,6 +69,7 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
 
     if (!window)
     {
+        fmt::print("WinNativeWindow::WndProc - null window {}\n", (long long) window);
         return ::DefWindowProc(hWnd, message, wParam, lParam);
     }
 
@@ -78,6 +79,8 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
         case WM_SYSCOMMAND:
             if (wParam == SC_KEYMENU)
             {
+                fmt::print("WinNativeWindow::WndProc - WM_SYSCOMMAND - SC_KEYMENU\n");
+
                 RECT winrect;
                 ::GetWindowRect(hWnd, &winrect);
                 ::TrackPopupMenu(GetSystemMenu(hWnd, false), TPM_TOPALIGN | TPM_LEFTALIGN, winrect.left + 5, winrect.top + 5, 0, hWnd, NULL);
@@ -85,16 +88,20 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
             }
             else
             {
+                fmt::print("WinNativeWindow::WndProc - WM_SYSCOMMAND - {}\n", wParam);
                 return ::DefWindowProc(hWnd, message, wParam, lParam);
             }
+            return 0;
 
         case WM_NCCALCSIZE:
             //this kills the window frame and title bar we added with
             //WS_THICKFRAME and WS_CAPTION
+            fmt::print("WinNativeWindow::WndProc - WM_NCALCSIZE\n");
             return 0;
 
         //If the parent window gets any close messages, send them over to QWinWidget and don't actually close here
         case WM_CLOSE:
+            fmt::print("WinNativeWindow::WndProc - WM_CLOSE - {}\n", (long long) window->childWindow);
             if (window->childWindow)
             {
                 ::SendMessage(window->childWindow, WM_CLOSE, 0, 0);
@@ -103,12 +110,13 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
             break;
 
         case WM_DESTROY:
+            fmt::print("WinNativeWindow::WndProc - WM_DESTROY\n");
             ::PostQuitMessage(0);
             break;
 
         case WM_NCHITTEST:
         {
-
+            fmt::print("WinNativeWindow::WndProc - WM_NCHITTEST\n");
             const LONG borderWidth = 8 * window->childWidget->window()->devicePixelRatio(); //This value can be arbitrarily large as only intentionally-HTTRANSPARENT'd messages arrive here
             RECT winrect;
             ::GetWindowRect(hWnd, &winrect);
@@ -169,6 +177,8 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
 		//When this native window changes size, it needs to manually resize the QWinWidget child
         case WM_SIZE:
         {
+            fmt::print("WinNativeWindow::WndProc - WM_SIZE - {}\n", (long long) window->childWidget);
+
             RECT winrect;
             ::GetClientRect(hWnd, &winrect);
 
@@ -204,6 +214,8 @@ LRESULT CALLBACK WinNativeWindow::WndProc(HWND hWnd, UINT message, WPARAM wParam
 
         case WM_GETMINMAXINFO:
         {
+            fmt::print("WinNativeWindow::WndProc - WM_GETMINMAXINFO\n");
+
             MINMAXINFO* minMaxInfo = (MINMAXINFO*)lParam;
             if (window->minimumSize.required) {
                 minMaxInfo->ptMinTrackSize.x = window->getMinimumWidth();

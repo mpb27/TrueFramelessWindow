@@ -43,8 +43,11 @@ Widget::Widget(QWidget *parent)
 	windowIcon->setStyleSheet("background: red;");
 	windowIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
 	windowIcon->setAlignment(Qt::AlignCenter);
-	windowIcon->setPixmap(QApplication::style()->standardIcon((QStyle::StandardPixmap)0).pixmap(16, 16));
+	//windowIcon->setPixmap(QApplication::style()->standardIcon((QStyle::StandardPixmap)0).pixmap(16, 16));
+	windowIcon->setPixmap(QApplication::style()->standardIcon(QStyle::StandardPixmap::SP_TitleBarMenuButton).pixmap(16, 16));
     toolBar->addWidget(windowIcon);
+
+    //toolBar->addWidget();
 
     // Add Menu Bar.
     {
@@ -133,7 +136,10 @@ Widget::Widget(QWidget *parent)
 	QImage::fromData("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 12 12\"><polygon fill=\"#ff00ff\" fill-rule=\"evenodd\" points=\"11 1.576 6.583 6 11 10.424 10.424 11 6 6.583 1.576 11 1 10.424 5.417 6 1 1.576 1.576 1 6 5.417 10.424 1\"></polygon></svg>")
     )
     );
-	closeButton->setIcon(closeIcon);
+
+    auto closeIcon2 = QApplication::style()->standardIcon(QStyle::StandardPixmap::SP_TitleBarCloseButton);
+
+    closeButton->setIcon(closeIcon2);
     //closeButton->setIconSize(QSize(12, 12));
 
 

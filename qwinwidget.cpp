@@ -99,24 +99,30 @@ bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *mes
             reason = Qt::BacktabFocusReason;
         else
             reason = Qt::TabFocusReason;
+        fmt::print("nativeEventFilter() - WM_SETFOCUS - {}\n", reason);
         QFocusEvent e(QEvent::FocusIn, reason);
-        QApplication::sendEvent(winWidget, &e);
+        //QApplication::sendEvent(winWidget, &e);
+        return false;
     }
 
     //Only close if safeToClose clears()
     if (msg->message == WM_CLOSE)
     {
+        fmt::print("nativeEventFilter() - WM_CLOSE\n");
         //do nothing
     }
 
     //Double check WM_SIZE messages to see if the parent native window is maximized
     if (msg->message == WM_SIZE)
     {
+        fmt::print("nativeEventFilter() - WM_SIZE\n");
+        // Synchronizes state of button and window.
         if (winWidget->m_widget && winWidget->m_widget->maximizeButton)
         {
             //Get the window state
             WINDOWPLACEMENT wp;
-            GetWindowPlacement(winWidget->m_parentNativeWindowHandle, &wp);
+            ::GetWindowPlacement(winWidget->m_parentNativeWindowHandle, &wp);
+            fmt::print("nativeEventFilter() - WM_SIZE - {}\n", (long long) winWidget->m_parentNativeWindowHandle);
 
             //If we're maximized,
             if (wp.showCmd == SW_MAXIMIZE)
@@ -135,6 +141,8 @@ bool NativeEventFilter::nativeEventFilter(const QByteArray &eventType, void *mes
     //Pass NCHITTESTS on the window edges as determined by BORDERWIDTH & TOOLBARHEIGHT through to the parent native window
     if (msg->message == WM_NCHITTEST)
     {
+        fmt::print("nativeEventFilter() - WM_NCHITTEST\n");
+
         RECT WindowRect;
         int x, y;
 
@@ -321,6 +329,8 @@ HWND QWinWidget::getParentWindow() const
 */
 void QWinWidget::childEvent(QChildEvent *e)
 {
+    fmt::print("QWinWidget::childEvent() - {}\n", e ? e->type() : -1);
+
     QObject *obj = e->child();
     if (obj->isWidgetType())
     {
@@ -344,6 +354,7 @@ void QWinWidget::childEvent(QChildEvent *e)
 /*! \internal */
 void QWinWidget::saveFocus()
 {
+    fmt::print("QWinWidget::saveFocus()\n");
     if (!m_prevFocusHandle) m_prevFocusHandle = ::GetFocus();
     if (!m_prevFocusHandle) m_prevFocusHandle = getParentWindow();
 }
@@ -355,6 +366,7 @@ void QWinWidget::saveFocus()
 */
 void QWinWidget::show()
 {
+    fmt::print("QWinWidget::show()\n");
     ::ShowWindow(m_parentNativeWindowHandle, true);
     saveFocus();
     QWidget::show();
@@ -376,6 +388,7 @@ void QWinWidget::show()
 */
 void QWinWidget::center()
 {
+    fmt::print("QWinWidget::center()\n");
     const QWidget *child = findChild<QWidget*>();
     if (child && !child->isWindow()) {
         qWarning("QWinWidget::center: Call this function only for QWinWidgets with toplevel children");
@@ -411,23 +424,25 @@ void QWinWidget::setGeometry(int x, int y, int w, int h)
 */
 void QWinWidget::resetFocus()
 {
+    fmt::print("QWinWidget::resetFocus()\n");
+
     if (m_prevFocusHandle)
         ::SetFocus(m_prevFocusHandle);
     else
         ::SetFocus(getParentWindow());
-
-    fmt::print("QWinWidget::resetFocus()\n");
 }
 
 //Tell the parent native window to minimize
 void QWinWidget::onMinimizeButtonClicked()
 {
+    fmt::print("QWinWidget::onMinimizeButtonClicked()\n");
     ::SendMessage(m_parentNativeWindowHandle, WM_SYSCOMMAND, SC_MINIMIZE, 0);
 }
 
 //Tell the parent native window to maximize or restore as appropriate
 void QWinWidget::onMaximizeButtonClicked()
 {
+    fmt::print("QWinWidget::onMaximizeButtonClicked()\n");
     if (!::IsZoomed(m_parentNativeWindowHandle))
     {
         ::SendMessage(m_parentNativeWindowHandle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
@@ -440,6 +455,7 @@ void QWinWidget::onMaximizeButtonClicked()
 
 void QWinWidget::onCloseButtonClicked()
 {
+    fmt::print("QWinWidget::onCloseButtonClicked()\n");
     close();
 }
 
@@ -449,12 +465,16 @@ void QWinWidget::onCloseButtonClicked()
 
 void QWinWidget::closeEvent(QCloseEvent *event)
 {
+    fmt::print("QWinWidget::closeEvent() - {}\n", event ? event->type() : 0);
     //use closeEvent to check for it whether it is safe to close your app here or not
     ::ShowWindow(m_parentNativeWindowHandle, false);
 }
 
 bool QWinWidget::eventFilter(QObject *o, QEvent *e)
 {
+    if (e->type() != 129)
+        fmt::print("QWinWidget::eventFilter() - {} {}\n", (long long) o, e ? e->type() : 0);
+
     auto* w = (QWidget*) o;
 
     switch (e->type())
@@ -506,6 +526,8 @@ bool QWinWidget::eventFilter(QObject *o, QEvent *e)
 */
 void QWinWidget::focusInEvent(QFocusEvent *e)
 {
+    fmt::print("QWinWidget::focusInEvent() - {}\n", e->reason());
+
     QWidget *candidate = this;
 
     switch (e->reason())
@@ -541,6 +563,8 @@ void QWinWidget::focusInEvent(QFocusEvent *e)
 */
 bool QWinWidget::focusNextPrevChild(bool next)
 {
+    fmt::print("QWinWidget::focusNextPrevChild() - {}\n", next);
+
     QWidget *curFocus = focusWidget();
     if (!next) {
         if (!curFocus->isWindow()) {

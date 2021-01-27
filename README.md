@@ -1,3 +1,5 @@
+# Depricated !!! - wangwenx190/framelesshelper project is much further along
+
 # TrueFramelessWindow
 A true frameless window with Qt, on both Windows and macOS
 
